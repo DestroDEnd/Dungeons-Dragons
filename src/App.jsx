@@ -987,7 +987,9 @@ function App() {
             </div>
           ) : (
             <div className="stats-grid" style={{gap: '15px', display: 'flex', flexDirection: 'column'}}>
-              {hiddenStats && Object.keys(hiddenStats).length > 0 ? Object.entries(hiddenStats).map(([stat, val]) => (
+              {hiddenStats && Object.keys(hiddenStats).length > 0 ? Object.entries(hiddenStats).map(([stat, val]) => {
+                const clampedVal = Math.max(-100, Math.min(100, val));
+                return (
                 <div key={stat} className="stat-item" style={{display: 'flex', flexDirection: 'column', gap: '5px'}}>
                   <div style={{display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center'}}>
                     <span className="stat-name" style={{color: 'var(--primary-color)'}}>{stat.toUpperCase()}</span>
@@ -999,13 +1001,13 @@ function App() {
                       position: 'absolute',
                       top: 0,
                       height: '100%',
-                      backgroundColor: val < 0 ? 'var(--danger-color)' : '#4caf50',
-                      width: `${Math.abs(val) / 2}%`,
-                      left: val < 0 ? `${50 - (Math.abs(val) / 2)}%` : '50%'
+                      backgroundColor: clampedVal < 0 ? 'var(--danger-color)' : '#4caf50',
+                      width: `${Math.abs(clampedVal) / 2}%`,
+                      left: clampedVal < 0 ? `${50 - (Math.abs(clampedVal) / 2)}%` : '50%'
                     }}></div>
                   </div>
                 </div>
-              )) : (
+              )}) : (
                 <div style={{fontSize: '10px', color: '#ccc', textAlign: 'center'}}>No hidden alignments yet...</div>
               )}
             </div>
