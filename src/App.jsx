@@ -490,8 +490,8 @@ function App() {
         if (aiData.skillsTriggered && !Array.isArray(aiData.skillsTriggered)) aiData.skillsTriggered = [aiData.skillsTriggered];
         
         // Handle Enemy State Updates
-        if (aiData.enemySpawn) {
-          setCurrentEnemy({ ...aiData.enemySpawn, hp: aiData.enemySpawn.maxHp });
+        if (aiData.enemySpawn && typeof aiData.enemySpawn === 'object' && aiData.enemySpawn.name) {
+          setCurrentEnemy({ ...aiData.enemySpawn, hp: aiData.enemySpawn.maxHp || 20 });
           setTimeout(() => addMessage('System', 'system', `COMBAT STARTED: You are now fighting ${aiData.enemySpawn.name}!`), 500);
         }
 
@@ -904,7 +904,7 @@ function App() {
       <aside className="sidebar">
         {currentEnemy && (
           <div className="panel" style={{ border: '1px solid var(--danger-color)', boxShadow: '0 0 10px rgba(255,51,51,0.2)' }}>
-            <h2 style={{ color: 'var(--danger-color)' }}>ENEMY: {currentEnemy.name.toUpperCase()}</h2>
+            <h2 style={{ color: 'var(--danger-color)' }}>ENEMY: {currentEnemy.name?.toUpperCase() || 'UNKNOWN'}</h2>
             <div className="stats-grid">
               <div className="stat-item"><span className="stat-name">HP</span> <span style={{color: 'var(--danger-color)'}}>{currentEnemy.hp}/{currentEnemy.maxHp}</span></div>
               <div className="stat-item"><span className="stat-name">STR</span> <span>{currentEnemy.str}</span></div>
