@@ -484,6 +484,11 @@ function App() {
       setTimeout(() => {
         let finalOutput = aiData.narrativeText || "The GM remains silent.";
         
+        // Ensure AI outputs are arrays to prevent crashes during rendering or state updates
+        if (aiData.inventoryAdd && !Array.isArray(aiData.inventoryAdd)) aiData.inventoryAdd = [aiData.inventoryAdd];
+        if (aiData.inventoryRemove && !Array.isArray(aiData.inventoryRemove)) aiData.inventoryRemove = [aiData.inventoryRemove];
+        if (aiData.skillsTriggered && !Array.isArray(aiData.skillsTriggered)) aiData.skillsTriggered = [aiData.skillsTriggered];
+        
         // Handle Enemy State Updates
         if (aiData.enemySpawn) {
           setCurrentEnemy({ ...aiData.enemySpawn, hp: aiData.enemySpawn.maxHp });
