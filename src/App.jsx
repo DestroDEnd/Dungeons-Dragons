@@ -921,10 +921,10 @@ function App() {
         )}
         <div className="panel">
           <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-            <h2>{statsPage === 0 ? 'Stats' : 'Skills'}</h2>
+            <h2>{statsPage === 0 ? 'Stats' : statsPage === 1 ? 'Skills' : 'Alignment'}</h2>
             <div>
-              <button className="retro-btn" style={{padding: '0.2rem 0.5rem', marginRight: '5px'}} onClick={() => setStatsPage(0)}>&lt;</button>
-              <button className="retro-btn" style={{padding: '0.2rem 0.5rem'}} onClick={() => setStatsPage(1)}>&gt;</button>
+              <button className="retro-btn" style={{padding: '0.2rem 0.5rem', marginRight: '5px'}} onClick={() => setStatsPage(prev => (prev - 1 + 3) % 3)}>&lt;</button>
+              <button className="retro-btn" style={{padding: '0.2rem 0.5rem'}} onClick={() => setStatsPage(prev => (prev + 1) % 3)}>&gt;</button>
             </div>
           </div>
           {stats?.HP <= 0 ? (
@@ -950,7 +950,7 @@ function App() {
               <div className="stat-item"><span className="stat-name">INT</span> <span>{stats?.INT}</span></div>
               <div className="stat-item"><span className="stat-name">CHA</span> <span>{stats?.CHA}</span></div>
             </div>
-          ) : (
+          ) : statsPage === 1 ? (
             <div className="stats-grid" style={{gap: '10px', display: 'flex', flexDirection: 'column'}}>
               {Array.isArray(skills) ? skills.map((skill, i) => (
                 <div key={i} className="skill-card" style={{border: '1px solid var(--primary-color)', padding: '5px'}}>
