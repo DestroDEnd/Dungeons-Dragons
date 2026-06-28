@@ -118,7 +118,7 @@ Based on this backstory, generate a unique, evocative, and cool character class 
 Also provide a 1-sentence flavor text summarizing them.
 Also provide stat adjustments for STR, DEX, INT, and CHA (values between 0 and +6).
 Also provide some hidden stat adjustments (array of strings like "[+] Sanity", "[-] Honor").
-Also provide a single starting item in the inventory tailored to this backstory. If money is appropriate, use 'Gold' as the currency (e.g. '10 Gold Coins').
+Also provide 1-3 starting items in the inventory tailored to this backstory (e.g. weapons, tools, or Gold). Format them as an array of strings.
 Also provide exactly 2 starting skills based on the class: 1 Active skill and 1 Passive skill. Format them as an array of objects: [{"name": "Skill Name", "type": "Active"|"Passive", "element": "Fire"|"Shadow"|"Holy"|"Arcane"|"Physical"|"Nature"|"Lightning"|"Ice"|"Void"|"Blood", "description": "Brief description"}].
 Also provide a set of hidden psychological/moral stats (key-value pairs, values from -100 to 100). Keep some stats high, some low, and some negative to make it believable based on the backstory. Include stats like Luck, Reputation, Fear, Corruption, Morality, Stress, Confidence, Fame, Greed, Honor, Curiosity, Mercy, Violence, Leadership, Sanity, Suspicion, CharismaAura, Destiny, Adaptability, Legacy.
 
@@ -126,7 +126,7 @@ Return ONLY a raw JSON object with the following schema, with no markdown format
 {
   "className": "string",
   "flavorText": "string",
-  "startingItem": "string",
+  "startingItems": ["string"],
   "baseStats": {
     "STR": number,
     "DEX": number,

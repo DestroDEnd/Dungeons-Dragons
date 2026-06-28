@@ -314,7 +314,7 @@ function App() {
         Adaptability: 10, Legacy: 0 
       };
 
-      const startingItem = data.startingItem || 'Water Flask';
+      const startingItems = data.startingItems || [data.startingItem || 'Water Flask'];
       
       let newSkills = data.skills || [
         { name: "Desperate Strike", type: "Active", description: "Lash out wildly with whatever is at hand." },
@@ -331,7 +331,7 @@ function App() {
         stats: finalStats,
         hiddenStats: newHidden,
         skills: newSkills,
-        inventory: [startingItem],
+        inventory: startingItems,
         eventLog: []
       };
 
