@@ -985,6 +985,30 @@ function App() {
                 ))
               )}
             </div>
+          ) : (
+            <div className="stats-grid" style={{gap: '15px', display: 'flex', flexDirection: 'column'}}>
+              {hiddenStats && Object.keys(hiddenStats).length > 0 ? Object.entries(hiddenStats).map(([stat, val]) => (
+                <div key={stat} className="stat-item" style={{display: 'flex', flexDirection: 'column', gap: '5px'}}>
+                  <div style={{display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center'}}>
+                    <span className="stat-name" style={{color: 'var(--primary-color)'}}>{stat.toUpperCase()}</span>
+                    <span style={{fontSize: '12px'}}>{val > 0 ? `+${val}` : val}</span>
+                  </div>
+                  <div style={{width: '100%', height: '4px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px', position: 'relative'}}>
+                    <div style={{position: 'absolute', left: '50%', top: '-2px', height: '8px', width: '2px', backgroundColor: '#555', zIndex: 1}}></div>
+                    <div style={{
+                      position: 'absolute',
+                      top: 0,
+                      height: '100%',
+                      backgroundColor: val < 0 ? 'var(--danger-color)' : '#4caf50',
+                      width: `${Math.abs(val) / 2}%`,
+                      left: val < 0 ? `${50 - (Math.abs(val) / 2)}%` : '50%'
+                    }}></div>
+                  </div>
+                </div>
+              )) : (
+                <div style={{fontSize: '10px', color: '#ccc', textAlign: 'center'}}>No hidden alignments yet...</div>
+              )}
+            </div>
           )}
         </div>
 
