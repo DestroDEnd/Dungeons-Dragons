@@ -55,7 +55,7 @@ Rules for your response:
 9. SKILL TRIGGERS: If any of the player's passive or active skills actively influence the outcome of the action (e.g. saving their life, ensuring a success, granting an advantage), add the EXACT name of the skill to the 'skillsTriggered' array.
 10. COMBAT SYSTEM: If the player is IN COMBAT, dictate damage dealt to the ENEMY by outputting a negative number for 'enemyHpChange'. If they kill the enemy, output enough negative enemyHpChange to drop the enemy's HP to 0. If a RANDOM ENCOUNTER was triggered, you MUST output an 'enemySpawn' object containing { "name": "...", "maxHp": number, "str": number, "dex": number, "int": number, "cha": number, "description": "..." }.
 11. CURRENCY: The official currency of this world is 'Gold'. Whenever dealing with money, wealth, or trades, explicitly refer to it as Gold or Gold Coins.
-12. INSTANT DEATH BAN: Do NOT instantly kill the player or set 'isDead' to true unless they are in combat and take lethal damage, or they perform a deliberately suicidal action. A failed roll for a mundane action (like inspecting an item or walking) should result in minor damage (-1 or -2 HP) or a complication, NEVER instant death.
+12. INSTANT DEATH LOGIC: A failed roll for a mundane action (like inspecting an item) should normally just result in minor damage or a complication. However, there is a VERY RARE chance (e.g., rolling a 1 or terrible luck) that a failure spirals into a freak lethal accident. If you decide the player dies, you MUST vividly narrate exactly how they met their gruesome end in the narrative text before setting 'isDead' to true.
 
 Return ONLY a raw JSON object with the following schema, with no markdown formatting or backticks:
 {
