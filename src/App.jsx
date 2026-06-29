@@ -46,9 +46,23 @@ const generateEnvironmentEvent = () => {
 };
 
 
+const THEME_COLORS = [
+  { name: 'BLUE', hex: '#3b82f6' },
+  { name: 'AMBER', hex: '#f59e0b' },
+  { name: 'MINT', hex: '#10b981' },
+  { name: 'PURPLE', hex: '#a855f7' },
+  { name: 'CRIMSON', hex: '#ef4444' }
+];
+
 function App() {
   // --- App State ---
   const [appState, setAppState] = useState('HOME'); // HOME, LOGIN, CHAR_SELECT, CHAR_CREATE, GAME
+  const [themeColor, setThemeColor] = useState(localStorage.getItem('rpg_themeColor') || '#3b82f6');
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--primary-color', themeColor);
+    localStorage.setItem('rpg_themeColor', themeColor);
+  }, [themeColor]);
   
   // --- Auth State ---
   const [currentUser, setCurrentUser] = useState(localStorage.getItem('rpg_currentUser') || null);
@@ -637,13 +651,35 @@ function App() {
 
   const renderExitModal = () => (
     <div className="modal-overlay">
-      <div className="modal-content">
+      <div className="modal-content" style={{maxWidth: '400px'}}>
         <h2 style={{color: 'var(--primary-color)', marginBottom: '1rem'}}>GAME MENU</h2>
+        
+        <div style={{marginBottom: '15px', borderBottom: '1px solid var(--border-color)', paddingBottom: '15px'}}>
+          <div style={{fontSize: '12px', marginBottom: '10px', color: '#ccc'}}>UI THEME COLOR</div>
+          <div style={{display: 'flex', gap: '5px', flexWrap: 'wrap', justifyContent: 'center'}}>
+            {THEME_COLORS.map(c => (
+              <button 
+                key={c.name} 
+                className="retro-btn"
+                style={{
+                  backgroundColor: themeColor === c.hex ? 'rgba(255,255,255,0.1)' : 'transparent',
+                  borderColor: c.hex,
+                  color: c.hex,
+                  padding: '5px 10px',
+                  fontSize: '10px'
+                }}
+                onClick={() => setThemeColor(c.hex)}
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="modal-actions" style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
           <button className="retro-btn" onClick={() => { setShowExitModal(false); setShowEventLogModal(true); }}>VIEW EVENT LOG</button>
           <button className="retro-btn primary" onClick={() => { handleSaveGame(); setShowExitModal(false); }}>SAVE PROGRESS</button>
           <button className="retro-btn" onClick={() => { handleSaveGame(); handleExitConfirm(false); }}>SAVE & EXIT TO MENU</button>
-          <button className="retro-btn" onClick={() => handleExitConfirm(false)}>EXIT WITHOUT SAVING</button>
           <button className="retro-btn" onClick={() => { setShowExitModal(false); setAppState(currentUser ? 'CHAR_SELECT' : 'HOME'); }}>RESTART (LOAD LAST SAVE)</button>
           <button className="retro-btn" onClick={() => setShowExitModal(false)}>RESUME GAME</button>
         </div>
