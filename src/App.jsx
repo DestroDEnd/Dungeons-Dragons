@@ -656,23 +656,21 @@ function App() {
         
         <div style={{marginBottom: '15px', borderBottom: '1px solid var(--border-color)', paddingBottom: '15px'}}>
           <div style={{fontSize: '12px', marginBottom: '10px', color: '#ccc'}}>UI THEME COLOR</div>
-          <div style={{display: 'flex', gap: '5px', flexWrap: 'wrap', justifyContent: 'center'}}>
-            {THEME_COLORS.map(c => (
-              <button 
-                key={c.name} 
-                className="retro-btn"
-                style={{
-                  backgroundColor: themeColor === c.hex ? 'rgba(255,255,255,0.1)' : 'transparent',
-                  borderColor: c.hex,
-                  color: c.hex,
-                  padding: '5px 10px',
-                  fontSize: '10px'
-                }}
-                onClick={() => setThemeColor(c.hex)}
-              >
-                {c.name}
-              </button>
-            ))}
+          <div style={{display: 'flex', gap: '15px', alignItems: 'center', justifyContent: 'center'}}>
+            <input 
+              type="color" 
+              value={themeColor} 
+              onChange={(e) => setThemeColor(e.target.value)} 
+              style={{
+                width: '50px',
+                height: '40px',
+                padding: '0',
+                border: '1px solid var(--primary-color)',
+                backgroundColor: 'transparent',
+                cursor: 'pointer'
+              }}
+            />
+            <span style={{color: themeColor, fontSize: '12px', fontFamily: 'monospace'}}>{themeColor.toUpperCase()}</span>
           </div>
         </div>
 
