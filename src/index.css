@@ -1,11 +1,11 @@
 :root {
   --bg-color: #050508;
-  --panel-bg: #111118;
+  --panel-bg: rgba(17, 17, 24, 0.7);
   --text-color: #d1d5db;
   --primary-color: #3b82f6; /* Blue for user */
   --accent-color: #ef4444; /* Red for important/rolls */
   --success-color: #10b981;
-  --warning-color: #f59e0b;
+  --warning-color: #ff3333;
   --danger-color: #ef4444;
   --border-color: #4b5563;
   --input-bg: #000000;
@@ -109,9 +109,30 @@ h1, h2, h3, button, input {
   color: #000;
 }
 
-.retro-btn.primary {
-  border-color: var(--primary-color);
+.retro-btn.primary:active {
+  transform: scale(0.95);
+  box-shadow: 0 0 10px var(--accent-color);
+}
+
+.retro-select {
+  background-color: #000;
   color: var(--primary-color);
+  border: 2px solid var(--primary-color);
+  padding: 0.5rem;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  cursor: pointer;
+  outline: none;
+}
+.retro-select option {
+  background-color: #000;
+  color: var(--primary-color);
+}
+
+.retro-btn.primary {
+  border-color: var(--text-color);
+  color: var(--text-color);
 }
 .retro-btn.primary:hover {
   background-color: var(--primary-color);
@@ -120,10 +141,10 @@ h1, h2, h3, button, input {
 
 .user-badge {
   background-color: var(--panel-bg);
-  border: 4px solid var(--success-color);
+  border: 4px solid var(--warning-color);
   padding: 0.5rem 1rem;
   font-size: 10px;
-  color: var(--success-color);
+  color: var(--warning-color);
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -160,6 +181,11 @@ h1, h2, h3, button, input {
   position: relative;
 }
 
+.creation-screen, .selection-screen {
+  justify-content: flex-start;
+  padding-top: 5vh;
+}
+
 .slideshow-bg {
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
@@ -185,8 +211,8 @@ h1, h2, h3, button, input {
 
 .home-title {
   font-size: 3rem;
-  color: #fff;
-  text-shadow: 4px 4px 0 var(--accent-color);
+  color: #fef3c7;
+  text-shadow: 4px 4px 0 #7f1d1d;
   margin-bottom: 2rem;
   line-height: 1.5;
 }
@@ -201,8 +227,8 @@ h1, h2, h3, button, input {
 
 .start-btn {
   background-color: transparent;
-  color: var(--warning-color);
-  border: 4px solid var(--warning-color);
+  color: var(--text-color);
+  border: 4px solid var(--text-color);
   padding: 1rem 2rem;
   font-size: 1.2rem;
   cursor: pointer;
@@ -212,7 +238,7 @@ h1, h2, h3, button, input {
 }
 
 .start-btn:hover {
-  background-color: var(--warning-color);
+  background-color: var(--text-color);
   color: #000;
   animation: none;
 }
@@ -246,10 +272,11 @@ h1, h2, h3, button, input {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  width: 600px;
-  background-color: var(--panel-bg);
-  border: 4px solid var(--border-color);
-  padding: 2rem;
+  width: 90vw;
+  max-width: 800px;
+  background-color: transparent;
+  border: none;
+  padding: 0;
 }
 
 .create-form input, .create-form textarea {
@@ -381,6 +408,7 @@ h1, h2, h3, button, input {
   display: flex;
   flex-direction: column;
   background-color: var(--panel-bg);
+  backdrop-filter: blur(10px);
   border: 4px solid var(--border-color);
   overflow: hidden;
 }
@@ -486,6 +514,7 @@ h1, h2, h3, button, input {
 
 .panel {
   background-color: var(--panel-bg);
+  backdrop-filter: blur(10px);
   border: 4px solid var(--border-color);
   padding: 1rem;
   flex: 1;
@@ -569,5 +598,58 @@ h1, h2, h3, button, input {
   10% { opacity: 0.8; }
   100% { opacity: 0; }
 }
+
+
+
+.shooting-stars-container {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  z-index: -1;
+  background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+}
+
+.star-field {
+  position: absolute;
+  width: 100%; height: 100%;
+}
+
+.twinkle-star {
+  position: absolute;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 4px #fff;
+  animation: twinkle linear infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes twinkle {
+  0% { opacity: 0.1; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.5); }
+  100% { opacity: 0.1; transform: scale(0.8); }
+}
+
+.star {
+  position: absolute;
+  width: 4px; height: 4px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 4px #fff, 0 0 10px var(--primary-color);
+  will-change: transform, opacity;
+}
+
+.star::before {
+  content: "";
+  position: absolute;
+  top: 50%; transform: translateY(-50%);
+  width: 200px; height: 2px;
+  background: linear-gradient(90deg, transparent, #fff);
+  right: 100%;
+  border-radius: 100%;
+}
+
+.shooting-star { top: -10%; right: 10%; left: auto; }
 
 

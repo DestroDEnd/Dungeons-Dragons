@@ -3,9 +3,13 @@ import './index.css';
 import { db } from './firebase';
 import { doc, setDoc, getDoc, collection, getDocs, onSnapshot, deleteDoc } from 'firebase/firestore';
 import LightningEffect from './LightningEffect';
+import ShootingStars from './ShootingStars';
 
 // --- Utility & Mock Functions ---
 const rollD20 = () => Math.floor(Math.random() * 20) + 1;
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+const SPRITE_PREFIX = 'Masterpiece dark fantasy RPG character portrait, grimdark aesthetic, atmospheric rim lighting, highly detailed digital oil painting, cinematic lighting, sharp focus, epic fantasy concept art, character:';
 
 // Dynamic Encounter Generators
 const NPC_TYPES = ['goblin', 'bandit', 'corrupted knight', 'shadow stalker', 'feral wolf', 'wandering merchant', 'mad cultist'];
@@ -58,6 +62,7 @@ function App() {
   // --- App State ---
   const [appState, setAppState] = useState('HOME'); // HOME, LOGIN, CHAR_SELECT, CHAR_CREATE, GAME
   const [themeColor, setThemeColor] = useState(localStorage.getItem('rpg_themeColor') || '#3b82f6');
+  const [bgImage, setBgImage] = useState('');
 
   useEffect(() => {
     document.documentElement.style.setProperty('--primary-color', themeColor);
@@ -88,6 +93,88 @@ function App() {
   // --- Character Creation State ---
   const [createCharName, setCreateCharName] = useState('');
   const [createCharDesc, setCreateCharDesc] = useState('');
+  const [createCharGender, setCreateCharGender] = useState('Any');
+  const [createCharAppearance, setCreateCharAppearance] = useState('');
+  const [previewSpriteUrl, setPreviewSpriteUrl] = useState('');
+  const [isSpriteLoading, setIsSpriteLoading] = useState(false);
+  const [spriteKicks, setSpriteKicks] = useState([]);
+  const [spriteArtist, setSpriteArtist] = useState('');
+  const [selectedArtist, setSelectedArtist] = useState('auto');
+  const [artModels, setArtModels] = useState([]);
+  const [createStep, setCreateStep] = useState(1);
+
+  // Fetch available art models on mount
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/api/art-models`)
+      .then(r => r.json())
+      .then(data => setArtModels(data.models || []))
+      .catch(() => {});
+  }, []);
+
+  // Fetch sprite through the multi-AI proxy and capture kick messages
+  const fetchSprite = async (desc, type = 'character', w = 384, h = 384) => {
+    if (!desc) return;
+    const prompt = `${SPRITE_PREFIX} ${type} design: ${desc}`;
+    const seed = Math.floor(Math.random() * 1000000);
+    let url = `${API_BASE_URL}/api/generate-sprite?prompt=${encodeURIComponent(prompt)}&width=${w}&height=${h}&seed=${seed}`;
+    if (selectedArtist && selectedArtist !== 'auto') {
+      url += `&artist=${selectedArtist}`;
+    }
+    
+    setIsSpriteLoading(true);
+    setSpriteKicks([]);
+    setSpriteArtist('');
+    if (previewSpriteUrl && previewSpriteUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(previewSpriteUrl);
+    }
+    setPreviewSpriteUrl('');
+
+    try {
+      const response = await fetch(url);
+      
+      const kicksHeader = response.headers.get('X-Kicks');
+      const artist = response.headers.get('X-Artist');
+      if (kicksHeader) {
+        try { setSpriteKicks(JSON.parse(kicksHeader)); } catch(e) {}
+      }
+      if (artist) setSpriteArtist(artist);
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        if (errData.kicks) setSpriteKicks(errData.kicks);
+        setPreviewSpriteUrl('ERROR');
+        return;
+      }
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      setPreviewSpriteUrl(blobUrl);
+    } catch (err) {
+      console.error('Sprite fetch failed:', err);
+      setPreviewSpriteUrl('ERROR');
+    } finally {
+      setIsSpriteLoading(false);
+    }
+  };
+
+  const handleGenerateAppearanceFromLore = async () => {
+    setIsCreating(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/generate-random-character`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gender: createCharGender, backstoryContext: createCharDesc })
+      });
+      const data = await response.json();
+      const appStr = data.appearance || "A cloaked figure whose face is obscured by shadows.";
+      setCreateCharAppearance(appStr);
+      await fetchSprite(appStr);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsCreating(false);
+    }
+  };
   const MAX_BONUS_POINTS = 10;
   const [bonusPoints, setBonusPoints] = useState(MAX_BONUS_POINTS);
   const [allocatedStats, setAllocatedStats] = useState({ STR: 0, DEX: 0, INT: 0, CHA: 0 });
@@ -293,6 +380,39 @@ function App() {
 
   const [isCreating, setIsCreating] = useState(false);
 
+  const handleRandomizeCharacter = async () => {
+    setIsCreating(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/generate-random-character`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gender: createCharGender })
+      });
+      const data = await response.json();
+      
+      setCreateCharDesc(data.backstory || "A mysterious wanderer with no memory of their past.");
+      
+      const appStr = data.appearance || "A cloaked figure whose face is obscured by shadows.";
+      setCreateCharAppearance(appStr);
+      fetchSprite(appStr);
+      
+      let points = MAX_BONUS_POINTS;
+      let newStats = { STR: 0, DEX: 0, INT: 0, CHA: 0 };
+      const statKeys = ['STR', 'DEX', 'INT', 'CHA'];
+      while (points > 0) {
+        const randomStat = statKeys[Math.floor(Math.random() * statKeys.length)];
+        newStats[randomStat]++;
+        points--;
+      }
+      setAllocatedStats(newStats);
+      setBonusPoints(0);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   const handleCreateCharacter = async () => {
     if (!createCharName || !createCharDesc) return;
     
@@ -304,8 +424,7 @@ function App() {
     setIsCreating(true);
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      const response = await fetch(`${apiUrl}/api/generate-class`, {
+      const response = await fetch(`${API_BASE_URL}/api/generate-class`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ backstory: createCharDesc })
@@ -346,7 +465,8 @@ function App() {
         hiddenStats: newHidden,
         skills: newSkills,
         inventory: startingItems,
-        eventLog: []
+        eventLog: [],
+        appearance: createCharAppearance
       };
 
       if (currentUser) {
@@ -364,6 +484,9 @@ function App() {
       setIsCreating(false);
       setCreateCharName('');
       setCreateCharDesc('');
+      setCreateCharAppearance('');
+      setPreviewSpriteUrl('');
+      setCreateStep(1);
       setBonusPoints(MAX_BONUS_POINTS);
       setAllocatedStats({ STR: 0, DEX: 0, INT: 0, CHA: 0 });
     }
@@ -379,16 +502,20 @@ function App() {
     setEventLog(char.eventLog || []);
     setCurrentEnemy(char.currentEnemy || null);
     setPromptCount(char.promptCount || 0);
+    setBgImage(char.bgImage || '');
     setGuestPromptCount(0);
 
     if (char.chatHistory && char.chatHistory.length > 0) {
       setChatHistory(char.chatHistory);
     } else {
       const randomIslandNum = Math.floor(Math.random() * 8) + 1;
+      const initialText = `You open your eyes slowly. The taste of salt water fills your mouth. You are lying on the sandy beach of Island ${randomIslandNum}. The waves crash gently against the shore, but a dark foreboding presence looms in the dense jungle ahead. What do you do?`;
       setChatHistory([
         { sender: 'System', type: 'system', text: 'Connecting to the realm...' },
-        { sender: 'Game Master', type: 'gm', text: `You open your eyes slowly. The taste of salt water fills your mouth. You are lying on the sandy beach of Island ${randomIslandNum}. The waves crash gently against the shore, but a dark foreboding presence looms in the dense jungle ahead. What do you do?` }
+        { sender: 'Game Master', type: 'gm', text: initialText }
       ]);
+      const initialScene = `A sandy beach on a tropical island with crashing waves, a dense dark foreboding jungle looming ahead`;
+      setBgImage(`https://image.pollinations.ai/prompt/${encodeURIComponent('Authentic 16-bit SNES pixel art, flat 2D sprite graphics, chunky pixels, low resolution retro aesthetic, ' + initialScene)}?width=1920&height=1080&nologo=true`);
     }
     
     setAppState('GAME');
@@ -462,8 +589,7 @@ function App() {
     
     const fetchAIResponse = async () => {
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-        const response = await fetch(`${apiUrl}/api/chat`, {
+        const response = await fetch(`${API_BASE_URL}/api/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -497,6 +623,10 @@ function App() {
       
       setTimeout(() => {
         let finalOutput = aiData.narrativeText || "The GM remains silent.";
+        
+        if (aiData.scene_prompt) {
+          setBgImage(`https://image.pollinations.ai/prompt/${encodeURIComponent('Authentic 16-bit SNES pixel art, flat 2D sprite graphics, chunky pixels, low resolution retro aesthetic, ' + aiData.scene_prompt)}?width=1920&height=1080&nologo=true`);
+        }
         
         // Ensure AI outputs are arrays to prevent crashes during rendering or state updates
         if (aiData.inventoryAdd && !Array.isArray(aiData.inventoryAdd)) aiData.inventoryAdd = [aiData.inventoryAdd];
@@ -624,7 +754,7 @@ function App() {
   // --- Game Menu Handlers ---
   const handleSaveGame = async () => {
     if (currentUser && activeCharacter) {
-      const updatedChar = { ...activeCharacter, stats, hiddenStats, skills, inventory, chatHistory, eventLog, currentEnemy, promptCount };
+      const updatedChar = { ...activeCharacter, stats, hiddenStats, skills, inventory, chatHistory, eventLog, currentEnemy, promptCount, bgImage };
       try {
         await setDoc(doc(db, 'characters', activeCharacter.id), updatedChar);
         addMessage('System', 'system', 'GAME SAVED TO CLOUD.');
@@ -741,7 +871,7 @@ function App() {
         <div className="slideshow-overlay" />
         {renderHeader()}
 
-        <h1 className="home-title">ISLANDS<br/>OF ORTSED</h1>
+        <h1 className="home-title">ORSTED ISLES<br/><span style={{fontSize: '0.6em', color: 'var(--warning-color)'}}>CROWN OF DOMINIONS</span></h1>
         <p className="home-subtitle">A dark realm awaits. Your choices, your class, your destiny.</p>
         
         <div style={{display: 'flex', gap: '1rem', flexDirection: 'column', alignItems: 'center'}}>
@@ -781,6 +911,7 @@ function App() {
   if (appState === 'CHAR_SELECT') {
     return (
       <div className="selection-screen">
+        <ShootingStars />
         {renderHeader()}
         <h1 className="home-title" style={{fontSize: '2rem'}}>SELECT CHARACTER</h1>
         
@@ -849,52 +980,219 @@ function App() {
   if (appState === 'CHAR_CREATE') {
     return (
       <div className="creation-screen">
+        <ShootingStars />
         {renderHeader()}
         <h1 className="home-title" style={{fontSize: '2rem'}}>CREATE CHARACTER</h1>
         { !currentUser && <p className="flavor-text" style={{fontSize: '12px !important', marginBottom: '1rem'}}>Playing as Guest. Your character will not be saved permanently.</p> }
         
-        <div className="create-form">
-          <input 
-            type="text" 
-            placeholder="CHARACTER NAME" 
-            value={createCharName} 
-            onChange={e => setCreateCharName(e.target.value)} 
-          />
-          
-          <div className="stat-allocation">
-            <h3 style={{color: 'var(--warning-color)', marginBottom: '0.5rem', fontSize: '10px'}}>ALLOCATE STATS (POINTS LEFT: {bonusPoints})</h3>
-            <div className="point-buy-grid">
-              {Object.keys(allocatedStats).map(stat => (
-                <div key={stat} className="point-buy-row">
-                  <span>{stat}</span>
-                  <div className="point-buy-controls">
-                    <button className="retro-btn" onClick={() => adjustStat(stat, -1)}>-</button>
-                    <span>{10 + allocatedStats[stat]}</span>
-                    <button className="retro-btn" onClick={() => adjustStat(stat, 1)}>+</button>
+        <div className="create-form" style={{position: 'relative', zIndex: 2}}>
+          {createStep === 1 ? (
+            <>
+              <div style={{display: 'flex', gap: '1rem', width: '100%'}}>
+                <input 
+                  type="text" 
+                  placeholder="CHARACTER NAME" 
+                  value={createCharName} 
+                  onChange={e => setCreateCharName(e.target.value)} 
+                  style={{flex: 1}}
+                />
+                <select 
+                  value={createCharGender} 
+                  onChange={e => setCreateCharGender(e.target.value)}
+                  className="retro-select"
+                  style={{width: '120px'}}
+                >
+                  <option value="Any">Any Gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              </div>
+              
+              <div className="stat-allocation">
+                <h3 style={{color: 'var(--warning-color)', marginBottom: '0.5rem', fontSize: '10px'}}>ALLOCATE STATS (POINTS LEFT: {bonusPoints})</h3>
+                <div className="point-buy-grid">
+                  {Object.keys(allocatedStats).map(stat => (
+                    <div key={stat} className="point-buy-row">
+                      <span>{stat}</span>
+                      <div className="point-buy-controls">
+                        <button className="retro-btn" onClick={() => adjustStat(stat, -1)}>-</button>
+                        <span>{10 + allocatedStats[stat]}</span>
+                        <button className="retro-btn" onClick={() => adjustStat(stat, 1)}>+</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <textarea 
+                placeholder="WRITE YOUR BACKSTORY AND LORE HERE..." 
+                value={createCharDesc} 
+                onChange={e => setCreateCharDesc(e.target.value)} 
+                rows="5"
+                disabled={isCreating}
+              />
+
+              <div style={{display: 'flex', gap: '1rem', marginTop: '1rem', justifyContent: 'center'}}>
+                <button className="retro-btn primary" onClick={() => {
+                  setCreateStep(2);
+                  if (!createCharAppearance) {
+                    handleGenerateAppearanceFromLore();
+                  }
+                }} disabled={!createCharName || !createCharDesc || isCreating}>
+                  MANIFEST TRUE FORM
+                </button>
+                <button className="retro-btn" onClick={handleRandomizeCharacter} disabled={isCreating} style={{color: 'var(--warning-color)', borderColor: 'var(--warning-color)'}}>
+                  RANDOMIZE
+                </button>
+                <button className="retro-btn" onClick={() => {
+                  setBonusPoints(MAX_BONUS_POINTS);
+                  setAllocatedStats({ STR: 0, DEX: 0, INT: 0, CHA: 0 });
+                  setCreateCharName('');
+                  setCreateCharDesc('');
+                  setCreateCharGender('Any');
+                  setCreateCharAppearance('');
+                  setPreviewSpriteUrl('');
+                  setCreateStep(1);
+                  setIsDeleteMode(false);
+                  setAppState(currentUser ? 'CHAR_SELECT' : 'HOME');
+                }} disabled={isCreating}>CANCEL</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="appearance-section" style={{ width: '100%' }}>
+                <h3 style={{color: 'var(--warning-color)', marginBottom: '0.5rem', fontSize: '14px', textAlign: 'center'}}>CUSTOMIZE APPEARANCE</h3>
+                
+                {/* Artist Selector */}
+                <div style={{ width: '100%', maxWidth: '400px', margin: '0 auto 1rem auto' }}>
+                  <label style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', letterSpacing: '1px', display: 'block', marginBottom: '4px' }}>🎨 Choose Your Artist</label>
+                  <select
+                    value={selectedArtist}
+                    onChange={e => setSelectedArtist(e.target.value)}
+                    disabled={isCreating || isSpriteLoading}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      backgroundColor: '#0a0a0a',
+                      color: '#e0e0e0',
+                      border: '1px solid var(--primary-color)',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      fontFamily: 'inherit',
+                      cursor: 'pointer',
+                      outline: 'none'
+                    }}
+                  >
+                    <option value="auto">⚡ Auto (Fast — Fluxy → Dreamy → Turbo)</option>
+                    <optgroup label="✨ PREMIUM QUALITY (Slow but stunning)">
+                      {artModels.filter(m => m.tier === 'premium').map(m => (
+                        <option key={m.id} value={m.id}>
+                          {'⭐'.repeat(m.quality)} {m.name} — {m.description.split('—')[1]?.trim() || m.description} ({m.speed})
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="⚡ FAST & RELIABLE">
+                      {artModels.filter(m => m.tier === 'fast').map(m => (
+                        <option key={m.id} value={m.id}>
+                          {'⭐'.repeat(m.quality)} {m.name} — {m.description.split('—')[1]?.trim() || m.description} ({m.speed})
+                        </option>
+                      ))}
+                    </optgroup>
+                  </select>
+                  {selectedArtist !== 'auto' && (
+                    <div style={{ fontSize: '9px', color: '#666', marginTop: '3px', textAlign: 'center' }}>
+                      If {artModels.find(m => m.id === selectedArtist)?.name || 'selected artist'} fails, falls back to fast artists automatically
+                    </div>
+                  )}
+                </div>
+
+                {spriteKicks.length > 0 && (
+                  <div style={{ width: '100%', maxWidth: '400px', marginBottom: '0.5rem' }}>
+                    {spriteKicks.map((kick, i) => (
+                      <div key={i} style={{ fontSize: '10px', color: '#ff9900', fontStyle: 'italic', textAlign: 'center', padding: '2px 0', lineHeight: '1.3' }}>
+                        ⚡ {kick.message}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {spriteArtist && previewSpriteUrl && previewSpriteUrl !== 'ERROR' && !isSpriteLoading && (
+                  <div style={{ fontSize: '10px', color: '#4CAF50', textAlign: 'center', marginBottom: '0.25rem' }}>
+                    🎨 Painted by {spriteArtist}
+                  </div>
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', alignItems: 'center' }}>
+                  <div style={{ position: 'relative', width: '280px', height: '340px', border: '2px solid var(--primary-color)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#050505', boxShadow: '0 0 20px rgba(0, 255, 255, 0.25)', overflow: 'hidden' }}>
+                    {isSpriteLoading || isCreating ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', zIndex: 1, padding: '10px' }}>
+                        <span className="img-load" style={{ color: 'var(--primary-color)', fontSize: '13px', textAlign: 'center' }}>
+                          🎨 {selectedArtist !== 'auto' ? `${artModels.find(m => m.id === selectedArtist)?.name || 'Artist'} is painting...` : 'Painting Masterpiece Portrait...'}
+                        </span>
+                        <span style={{ fontSize: '10px', color: '#aaa', textAlign: 'center' }}>
+                          {selectedArtist !== 'auto' && artModels.find(m => m.id === selectedArtist)?.tier === 'premium' 
+                            ? '(Premium quality — may take 15-40 seconds)' 
+                            : '(Dark fantasy character art)'}
+                        </span>
+                      </div>
+                    ) : previewSpriteUrl && previewSpriteUrl !== 'ERROR' ? (
+                      <>
+                        <img 
+                          key={previewSpriteUrl}
+                          src={previewSpriteUrl} 
+                          alt="Preview" 
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', zIndex: 2 }} 
+                        />
+                      </>
+                    ) : previewSpriteUrl === 'ERROR' ? (
+                      <span style={{ fontSize: '12px', color: 'var(--danger-color)', textAlign: 'center', padding: '1rem' }}>All artists failed!<br/>(Click button to retry)</span>
+                    ) : (
+                      <span style={{ fontSize: '13px', color: '#666', textAlign: 'center' }}>NO PORTRAIT<br/>(Click 'FROM LORE' or 'PREVIEW')</span>
+                    )}
+                  </div>
+                  
+                  <textarea 
+                    placeholder="Describe your character's appearance (e.g. 'purple haired free spirit in tattered clothes')..." 
+                    value={createCharAppearance} 
+                    onChange={e => setCreateCharAppearance(e.target.value)} 
+                    rows="3"
+                    style={{ width: '100%', maxWidth: '400px' }}
+                    disabled={isCreating || isSpriteLoading}
+                  />
+                  
+                  <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', width: '100%', maxWidth: '400px' }}>
+                    <button 
+                      type="button"
+                      className="retro-btn" 
+                      onClick={handleGenerateAppearanceFromLore}
+                      disabled={isCreating || isSpriteLoading}
+                      style={{ color: 'var(--warning-color)', borderColor: 'var(--warning-color)', flex: 1, fontSize: '10px' }}
+                    >
+                      {isCreating ? 'READING LORE...' : 'FROM LORE'}
+                    </button>
+                    <button 
+                      type="button"
+                      className="retro-btn" 
+                      onClick={() => {
+                        if (createCharAppearance) {
+                          fetchSprite(createCharAppearance);
+                        }
+                      }}
+                      disabled={!createCharAppearance || isCreating || isSpriteLoading}
+                      style={{ flex: 2 }}
+                    >
+                      {isSpriteLoading ? 'PAINTING...' : 'PREVIEW SPRITE'}
+                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
 
-          <textarea 
-            placeholder="WRITE YOUR BACKSTORY AND LORE HERE..." 
-            value={createCharDesc} 
-            onChange={e => setCreateCharDesc(e.target.value)} 
-            rows="5"
-            disabled={isCreating}
-          />
-          <div style={{display: 'flex', gap: '1rem', marginTop: '1rem'}}>
-            <button className="retro-btn primary" onClick={handleCreateCharacter} disabled={isCreating}>
-              {isCreating ? 'CONSULTING ORACLE...' : 'FORGE DESTINY'}
-            </button>
-            <button className="retro-btn" onClick={() => {
-              setBonusPoints(MAX_BONUS_POINTS);
-              setAllocatedStats({ STR: 0, DEX: 0, INT: 0, CHA: 0 });
-              setIsDeleteMode(false);
-              setAppState(currentUser ? 'CHAR_SELECT' : 'HOME');
-            }} disabled={isCreating}>CANCEL</button>
-          </div>
+              <div style={{display: 'flex', gap: '1rem', marginTop: '2rem', justifyContent: 'center'}}>
+                <button className="retro-btn" onClick={() => setCreateStep(1)} disabled={isCreating}>BACK</button>
+                <button className="retro-btn primary" onClick={handleCreateCharacter} disabled={isCreating}>
+                  {isCreating ? 'CONSULTING ORACLE...' : 'FORGE DESTINY'}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     );
@@ -903,6 +1201,19 @@ function App() {
   // GAME Screen
   return (
     <div className="app-container" style={{position: 'relative', paddingTop: '5rem'}}>
+      {bgImage && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundImage: `url(${bgImage})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          opacity: 1,
+          zIndex: -1,
+          imageRendering: 'pixelated',
+          transition: 'background-image 2s ease-in-out'
+        }} />
+      )}
       {flashColor && <div className="flash-overlay" style={{ backgroundColor: flashColor, boxShadow: `inset 0 0 100px ${flashColor}` }}></div>}
       {renderHeader()}
       {renderGameMenu()}
@@ -931,7 +1242,7 @@ function App() {
             autoFocus
             disabled={stats?.HP <= 0 || (!currentUser && guestPromptCount >= 10)}
           />
-          <button type="submit" disabled={stats?.HP <= 0 || (!currentUser && guestPromptCount >= 10)}>Send</button>
+            <button type="submit" disabled={stats?.HP <= 0 || (!currentUser && guestPromptCount >= 10)}>Send</button>
         </form>
       </main>
 
@@ -939,6 +1250,35 @@ function App() {
         {currentEnemy && (
           <div className="panel" style={{ border: '1px solid var(--danger-color)', boxShadow: '0 0 10px rgba(255,51,51,0.2)' }}>
             <h2 style={{ color: 'var(--danger-color)' }}>ENEMY: {currentEnemy.name?.toUpperCase() || 'UNKNOWN'}</h2>
+            <div style={{ textAlign: 'center', marginBottom: '10px', minHeight: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+              <img 
+                key={`enemy-${currentEnemy.name}`}
+                src={`${API_BASE_URL}/api/generate-sprite?prompt=${encodeURIComponent(SPRITE_PREFIX + ' monster design: ' + currentEnemy.name + ' ' + (currentEnemy.description || '').substring(0, 100))}&width=256&height=256`} 
+                alt={currentEnemy.name}
+                style={{ width: '150px', height: '150px', objectFit: 'contain', imageRendering: 'pixelated', border: '2px solid var(--danger-color)', zIndex: 2, display: 'none' }}
+                onLoad={(e) => {
+                  e.target.style.display = 'block';
+                  const errSpan = e.target.parentElement.querySelector('.img-err');
+                  if (errSpan) errSpan.style.display = 'none';
+                  const loadSpan = e.target.parentElement.querySelector('.img-load');
+                  if (loadSpan) loadSpan.style.display = 'none';
+                }}
+                onError={(e) => { 
+                  e.target.style.display = 'none'; 
+                  const loadSpan = e.target.parentElement.querySelector('.img-load');
+                  if (loadSpan) loadSpan.style.display = 'none';
+                  
+                  if (!e.target.parentElement.querySelector('.img-err')) {
+                    const span = document.createElement('span');
+                    span.className = 'img-err';
+                    span.style.cssText = 'color: #666; font-size: 12px; text-align: center; position: absolute; zIndex: 1;';
+                    span.innerHTML = 'Image failed to load<br/>(AI timeout)';
+                    e.target.parentElement.appendChild(span);
+                  }
+                }}
+              />
+              <span className="img-load" style={{ position: 'absolute', color: 'var(--danger-color)', fontSize: '12px', zIndex: 1, textAlign: 'center' }}>Loading...</span>
+            </div>
             <div className="stats-grid">
               <div className="stat-item"><span className="stat-name">HP</span> <span style={{color: 'var(--danger-color)'}}>{currentEnemy.hp}/{currentEnemy.maxHp}</span></div>
               <div className="stat-item"><span className="stat-name">STR</span> <span>{currentEnemy.str}</span></div>
@@ -957,10 +1297,27 @@ function App() {
           <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
             <h2>{statsPage === 0 ? 'Stats' : statsPage === 1 ? 'Skills' : 'Alignment'}</h2>
             <div>
-              <button className="retro-btn" style={{padding: '0.2rem 0.5rem', marginRight: '5px'}} onClick={() => setStatsPage(prev => (prev - 1 + 3) % 3)}>&lt;</button>
-              <button className="retro-btn" style={{padding: '0.2rem 0.5rem'}} onClick={() => setStatsPage(prev => (prev + 1) % 3)}>&gt;</button>
+              <button className="retro-btn" onClick={() => setStatsPage((prev) => (prev - 1 + 3) % 3)}>&lt;</button>
+              <button className="retro-btn" style={{marginLeft: '0.5rem'}} onClick={() => setStatsPage((prev) => (prev + 1) % 3)}>&gt;</button>
             </div>
           </div>
+          {statsPage === 0 && activeCharacter?.appearance && (
+            <div style={{ textAlign: 'center', marginTop: '15px', marginBottom: '15px', minHeight: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+              <img 
+                key={`player-${activeCharacter.appearance}`}
+                src={`${API_BASE_URL}/api/generate-sprite?prompt=${encodeURIComponent(SPRITE_PREFIX + ' character design: ' + activeCharacter.appearance)}&width=256&height=256`} 
+                alt="Player Sprite"
+                style={{ width: '150px', height: '150px', objectFit: 'contain', imageRendering: 'pixelated', border: '2px solid var(--primary-color)', zIndex: 2, display: 'none' }}
+                onLoad={(e) => {
+                  e.target.style.display = 'block';
+                  const loadSpan = e.target.parentElement.querySelector('.img-load');
+                  if (loadSpan) loadSpan.style.display = 'none';
+                }}
+              />
+              <span className="img-load" style={{ position: 'absolute', color: 'var(--primary-color)', fontSize: '12px', zIndex: 1, textAlign: 'center' }}>Loading...</span>
+            </div>
+          )}
+          <hr style={{ borderColor: '#333', margin: '1rem 0' }} />
           {stats?.HP <= 0 ? (
             <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center'}}>
               <div className="dead-text">DEAD</div>

@@ -26,3 +26,9 @@ dist-ssr
 # Environment Variables
 .env
 .env.*
+
+# Firebase Cache
+.firebase/
+temp_models.json
+test.js
+
